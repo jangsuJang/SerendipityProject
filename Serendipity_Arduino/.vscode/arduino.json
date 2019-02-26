@@ -1,0 +1,5 @@
+{
+    "board": "arduino:avr:uno",
+    "sketch": "serendiMusic/serendiMusic.ino",
+    "port": "/dev/cu.usbmodem146201"
+}
