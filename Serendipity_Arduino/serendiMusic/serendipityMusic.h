@@ -17,13 +17,20 @@ class serendipityMusic {
 };
 
 void serendipityMusic::ready(){
+
     // setting for RFID 
 
     // settting for Neopixel
-    // serendiNeoPixel secondRing = serendiNeoPixel(SECOND_TOKEN_PIN , NUMBER_OF_PIXEL);
+    serendiNeoPixel secondRing = serendiNeoPixel();
     // serendiNeoPixel thirdRing = serendiNeoPixel(THIRD_TOKEN_PIN , NUMBER_OF_PIXEL);
 
+    Serial.println("hello");
+    secondRing.isPlaying();
+    Serial.println("isPlaying is done");
+
     // firstRing.isPlaying();
+
+    // this->dialAttached(3);
 
 
 
@@ -33,13 +40,12 @@ void serendipityMusic::ready(){
 }
 
 void serendipityMusic::start(){
+    Serial.println(serendiNeoPixel::ledSelection);
 
 }
 
 void serendipityMusic::dialAttached(int PIN){
     //다이얼이 부착되면 해당 하는 링을 활성화 
-    serendiNeoPixel activatedRing= serendiNeoPixel(PIN, NUMBER_OF_PIXEL);
-
 
 
 }
