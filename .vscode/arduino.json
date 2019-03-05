@@ -1,6 +1,5 @@
 {
-    "board": "arduino:avr:mega",
-    "port": "/dev/cu.usbmodem146101",
-    "sketch": "Serendipity_Arduino/serendiMusic/serendiMusic.ino",
-    "configuration": "cpu=atmega2560"
+    "board": "arduino:avr:uno",
+    "port": "/dev/cu.usbmodem146401",
+    "sketch": "Serendipity_Arduino/serendiMusic/serendiMusic.ino"
 }

@@ -10,6 +10,7 @@ void setup(){
 }
 
 void loop(){
+    Serial.println("hello");
     player.start();
     Serial.println("hello");
 }

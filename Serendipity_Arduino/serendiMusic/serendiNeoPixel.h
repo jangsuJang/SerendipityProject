@@ -21,7 +21,6 @@ class serendiNeoPixel {
 
 
     private:
-    SemaphoreHandle_t xSerialSemaphore;
     static Adafruit_NeoPixel firstPixels;
     static Adafruit_NeoPixel secondPixels;
     static Adafruit_NeoPixel thirdPixels;
@@ -32,6 +31,7 @@ class serendiNeoPixel {
     static int delayVal;
     static int numberOfPixel;
     static int highlightPoint;
+    static SemaphoreHandle_t xSerialSemaphore;
     int currentPoint = 0;
     bool playing = false;
 
@@ -50,6 +50,7 @@ class serendiNeoPixel {
 int serendiNeoPixel::delayVal = 15;
 int serendiNeoPixel::numberOfPixel=24;
 static TaskHandle_t serendiNeoPixel::xRotationHandle;
+static SemaphoreHandle_t serendiNeoPixel::xSerialSemaphore;
 
 
 Adafruit_NeoPixel* serendiNeoPixel::pixels;
@@ -62,6 +63,13 @@ void serendiNeoPixel::isPlaying(){
 
     //led 회전과 탐색 하이라이트를 하는 스레드를 생성
     //세마포어 생성
+
+    if(xSerialSemaphore ==NULL){
+      xSerialSemaphore = xSemaphoreCreateMutex();
+
+      if((xSerialSemaphore)!=NULL)
+        xSemaphoreGive((xSerialSemaphore));
+    }
 
     // LED 링을 계속 회전하게 만들어 주는 스레드
     xTaskCreate(
@@ -80,7 +88,7 @@ void serendiNeoPixel::isPlaying(){
       (const portCHAR *) "Button Test",
       128,
       this,
-      4,
+      2,
       NULL
     );
     Serial.println("all task created");
@@ -90,7 +98,7 @@ void serendiNeoPixel::isPlaying(){
       (const portCHAR *) "Detect rotation",
       128,
       this,
-      4,
+      2,
       NULL
     );
     Serial.println("all task created");
@@ -102,7 +110,11 @@ void serendiNeoPixel::isPlaying(){
 
 }
 void serendiNeoPixel::TaskDigitalRead(void *pvParameters __attribute__((unused))){
-  Serial.println("Digital Listener was created");
+
+  if(xSemaphoreTake(xSerialSemaphore,(TickType_t)5) == pdTRUE){
+    Serial.println("Digital Listener was created");
+    xSemaphoreGive(xSerialSemaphore);
+  }
 
   int pushButton = 13;
   pinMode(pushButton,INPUT);
@@ -116,31 +128,42 @@ void serendiNeoPixel::TaskDigitalRead(void *pvParameters __attribute__((unused))
       debouncer.update();
       if(debouncer.fell()){
 
+        if(xSemaphoreTake(xSerialSemaphore,(TickType_t)5)==pdTRUE){
         serendiNeoPixel::ledSelection+= 1;
-        Serial.println(ledSelection);
         
-        if(serendiNeoPixel::ledSelection> 4){
-          serendiNeoPixel::highlightPoint = 3;
+         if(serendiNeoPixel::ledSelection> 4){
+           serendiNeoPixel::ledSelection= 3;
+         }
+         Serial.println("hello");
+        xSemaphoreGive(xSerialSemaphore);
+        }
+        vTaskDelay(10);
+        Serial.println(ledSelection);
 
-          vTaskDelay(3);
-          xTaskCreate(
-            firstLedRotation,
-            (const portCHAR *) "LedRotation",
-            128,
-            NULL,
-            3,
-            &xRotationHandle
-          );
-          Serial.println("created");
+        if(xSemaphoreTake(xSerialSemaphore,(TickType_t)5)==pdTRUE){
+          Serial.println("deleting");
+          vTaskDelete(xRotationHandle);
+          Serial.println("deleted");
+          xSemaphoreGive(xSerialSemaphore);
+        }
+
+         xTaskCreate(
+           firstLedRotation,
+           (const portCHAR *) "LedRotation",
+           128,
+           NULL,
+           4,
+           &xRotationHandle
+         );
+
+         if(xSemaphoreTake(xSerialSemaphore,(TickType_t)5) == pdTRUE){
+           Serial.println("created");
+           xSemaphoreGive(xSerialSemaphore);
+         }
 
           //기존 테스크가 죽을떄 동안 무한 루프
-        }
       }
-
-
-
     }
-
 }
 
 
@@ -149,7 +172,11 @@ void serendiNeoPixel::TaskDigitalRead(void *pvParameters __attribute__((unused))
 void serendiNeoPixel::firstLedRotation(void *pvParameters __attribute__((unused))){
   //처음에 점점빨라지는 형식으로 구현하기 
   (void) pvParameters;
-  Serial.println("Rotation is created");
+
+  if(xSemaphoreTake(xSerialSemaphore,(TickType_t)5) == pdTRUE){
+    Serial.println("Rotation is created");
+    xSemaphoreGive(xSerialSemaphore);
+  }
 
   // pixels = Adafruit_NeoPixel(numberOfPixel ,3, NEO_GRB + NEO_KHZ800);
 
@@ -169,14 +196,11 @@ void serendiNeoPixel::firstLedRotation(void *pvParameters __attribute__((unused)
         //turn off all light
         firstPixels.clear();
         firstPixels.show();
-        Serial.println("deleting");
-        vTaskDelete(xRotationHandle);
-        Serial.println("deleted");
-
+        //wait until delite
+        vTaskSuspend(xRotationHandle);
       }
 
         i = (i > numberOfPixel) ? 0 : i;
-
         // pixels.Color takes RGB values, from 0,0,0 up to 255,255,255
         firstPixels.clear();
         firstPixels.setPixelColor(i, firstPixels.Color(0,150,0)); // Moderately bright green color.
@@ -200,6 +224,14 @@ void serendiNeoPixel::firstLedRotation(void *pvParameters __attribute__((unused)
     int i = 0;
     for(;;){
 
+        if(ledSelection!=4){
+          //turn off all light
+          secondPixels.clear();
+          secondPixels.show();
+          //wait until delite
+          vTaskSuspend(xRotationHandle);
+        }
+
         i = (i > numberOfPixel) ? 0 : i;
 
         // pixels.Color takes RGB values, from 0,0,0 up to 255,255,255
@@ -219,7 +251,10 @@ void serendiNeoPixel::firstLedRotation(void *pvParameters __attribute__((unused)
 }
 
 void serendiNeoPixel::AnalogListener(void *pvParameters){
-  Serial.println("AnalogListener is created");
+   if(xSemaphoreTake(xSerialSemaphore,(TickType_t)5) == pdTRUE){
+     Serial.println("AnalogListener is created");
+     xSemaphoreGive(xSerialSemaphore);
+   }
   int rotaryEncoder = A0;
   int prevVal = -1;
   int tempVal;
@@ -231,25 +266,19 @@ void serendiNeoPixel::AnalogListener(void *pvParameters){
     tempVal = serendiNeoPixel::highlightPoint;
     if(prevVal != tempVal){
       prevVal = tempVal;
-      Serial.println(prevVal);
+      if(xSemaphoreTake(xSerialSemaphore,(TickType_t)5) == pdTRUE){
+      // Serial.println(prevVal);
+        xSemaphoreGive(xSerialSemaphore);
+      }
       prevVal = serendiNeoPixel::highlightPoint;
     }
   }
-
-
-
-
-
-
 }
 
 int serendiNeoPixel::highlightPoint=0;
-
 int serendiNeoPixel::ledSelection=3;
-
 
  void serendiNeoPixel::setHighlightPoint(int hp){
    highlightPoint = hp;
-
  }
 
